@@ -4,18 +4,24 @@ import { cn } from "@/lib/utils";
 import type { Professional } from "@/lib/data";
 import { formatPrice } from "@/lib/data";
 
+function getPriceDisplay(professional: Professional): string {
+  const hasFree = professional.services.some((s) => s.price === null || s.price === 0);
+  if (hasFree && professional.services.length > 0) return "Free options";
+  const lowestPrice = professional.services.reduce((min, service) => {
+    if (service.price == null || service.price === 0) return min;
+    return Math.min(min, service.price);
+  }, Infinity);
+  if (lowestPrice === Infinity || professional.services.length === 0) return "Contact for pricing";
+  return `From ${formatPrice(lowestPrice)}`;
+}
+
 interface ProfileCardProps {
   professional: Professional;
   onSelect: (professional: Professional) => void;
 }
 
 export function ProfileCard({ professional, onSelect }: ProfileCardProps) {
-  const lowestPrice = professional.services.reduce((min, service) => {
-    if (service.price === null) return min === Infinity ? 0 : min;
-    return Math.min(min, service.price);
-  }, Infinity);
-
-  const priceDisplay = lowestPrice === 0 ? "Free options" : lowestPrice === Infinity ? "Contact for pricing" : `From $${lowestPrice}`;
+  const priceDisplay = getPriceDisplay(professional);
 
   return (
     <article 
