@@ -3,7 +3,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, LayoutDashboard, Shield, Briefcase } from "lucide-react";
 import { Link } from "react-router-dom";
-import { ThemeToggle } from "./ThemeToggle";
+import { ThemeToggle } from "../ThemeToggle";
 
 export function Header() {
   return (

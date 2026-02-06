@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProviderProfileEdit } from '@/components/ProviderProfileEdit';
 import { ProfileCard } from '@/components/ProfileCard';
 import { ProfileDetail } from '@/components/ProfileDetail';
+import { CountdownTimer } from '@/components/CountdownTimer';
 import {
   ArrowLeft,
   Briefcase,
@@ -47,6 +48,13 @@ export default function ProviderDashboard() {
   const [creating, setCreating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [previewProfessional, setPreviewProfessional] = useState<Professional | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  // Update 'now' every minute to trigger re-filtering
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchProfile = async () => {
     if (!user?._id) return;
@@ -80,6 +88,13 @@ export default function ProviderDashboard() {
     setLoading(true);
     Promise.all([fetchProfile(), fetchBookings()]).finally(() => setLoading(false));
   }, [user?._id]);
+
+  const activeBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      const expiry = new Date(booking.date).getTime() + 60 * 60 * 1000; // 1 hour duration
+      return expiry > now;
+    });
+  }, [bookings, now]);
 
   const createProfile = async () => {
     if (!user?._id) {
@@ -290,37 +305,52 @@ export default function ProviderDashboard() {
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
                 Your sessions
+                {activeBookings.length > 0 && (
+                  <span className="ml-2 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
+                    {activeBookings.length} Active
+                  </span>
+                )}
               </h2>
-              {bookings.length === 0 ? (
+              {activeBookings.length === 0 ? (
                 <Card>
                   <CardContent className="pt-6">
-                    <p className="text-muted-foreground text-center py-4">No upcoming sessions yet.</p>
+                    <p className="text-muted-foreground text-center py-4">No active sessions yet.</p>
                     <p className="text-sm text-muted-foreground text-center">
-                      When clients book you, they’ll appear here.
+                      Current sessions will appear here and expire 1 hour after the booking time.
                     </p>
                   </CardContent>
                 </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {bookings.map((b) => (
-                    <Card key={b._id}>
-                      <CardHeader>
-                        <CardTitle className="text-base">{b.serviceLabel}</CardTitle>
-                        <CardDescription className="capitalize">{b.serviceType}</CardDescription>
+                  {activeBookings.map((b) => (
+                    <Card key={b._id} className="border-primary/20">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <CardTitle className="text-base">{b.serviceLabel}</CardTitle>
+                            <CardDescription className="capitalize">{b.serviceType}</CardDescription>
+                          </div>
+                          <CountdownTimer startDate={b.date} durationMinutes={60} />
+                        </div>
                       </CardHeader>
-                      <CardContent className="space-y-2">
-                        {b.userId && (
-                          <p className="text-sm text-muted-foreground">
-                            Client: {b.userId.name ?? b.userId.email ?? '—'}
-                          </p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(b.date).toLocaleDateString()} · {new Date(b.date).toLocaleTimeString()}
-                        </p>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          {b.userId && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="font-medium text-foreground">Client:</span>
+                              <span>{b.userId.name ?? b.userId.email ?? '—'}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>{new Date(b.date).toLocaleDateString()} · {new Date(b.date).toLocaleTimeString()}</span>
+                          </div>
+                        </div>
+
                         {b.meetLink && (
-                          <Button className="w-full mt-2" size="sm" asChild>
+                          <Button className="w-full mt-2 group" size="sm" asChild>
                             <Link to={`/meet/${b.meetLink.split('/').pop()}`}>
-                              <Video className="w-4 h-4 mr-2" />
+                              <Video className="w-4 h-4 mr-2 group-hover:animate-pulse" />
                               Join video call
                             </Link>
                           </Button>
